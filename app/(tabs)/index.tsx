@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { trpc } from "@/lib/trpc";
 import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
+import { useNotificationTriggers } from "@/hooks/use-notification-triggers";
 
 // Force RTL layout for Arabic
 I18nManager.forceRTL(true);
@@ -23,6 +24,9 @@ export default function HomeScreen() {
   const colors = useColors();
   const { user } = useAuth();
   const router = useRouter();
+  
+  // Initialize notification triggers
+  useNotificationTriggers();
   const [stats, setStats] = useState<DashboardStats>({
     totalVehicles: 0,
     activeVehicles: 0,
