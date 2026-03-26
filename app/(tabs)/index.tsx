@@ -1,6 +1,8 @@
-import { ScrollView, Text, View, Pressable, I18nManager } from "react-native";
+import { ScrollView, Text, View, Pressable, I18nManager, Alert } from "react-native";
 import { useEffect, useState } from "react";
 import { ScreenContainer } from "@/components/screen-container";
+import { ScreenHeader, type HeaderButton } from "@/components/screen-header";
+import { ActionButtons, type ActionButton } from "@/components/action-buttons";
 import { useColors } from "@/hooks/use-colors";
 import { useAuth } from "@/hooks/use-auth";
 import { trpc } from "@/lib/trpc";
@@ -11,6 +13,7 @@ import { useNotificationTriggers } from "@/hooks/use-notification-triggers";
 // Force RTL layout for Arabic
 I18nManager.forceRTL(true);
 
+// Type definitions
 interface DashboardStats {
   totalVehicles: number;
   activeVehicles: number;
