@@ -216,16 +216,49 @@ export default function OperationsScreen() {
       <View style={{ flex: 1 }}>
         {/* Header */}
         <View style={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 12 }}>
-          <Text
+          <View
             style={{
-              fontSize: 24,
-              fontWeight: "700",
-              color: colors.foreground,
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
               marginBottom: 16,
             }}
           >
-            العمليات
-          </Text>
+            <Text
+              style={{
+                fontSize: 24,
+                fontWeight: "700",
+                color: colors.foreground,
+              }}
+            >
+              العمليات
+            </Text>
+            <Pressable
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.push("/operations/new");
+              }}
+              style={({ pressed }) => [
+                {
+                  backgroundColor: colors.primary,
+                  paddingHorizontal: 12,
+                  paddingVertical: 8,
+                  borderRadius: 8,
+                  opacity: pressed ? 0.7 : 1,
+                },
+              ]}
+            >
+              <Text
+                style={{
+                  color: "#ffffff",
+                  fontSize: 14,
+                  fontWeight: "600",
+                }}
+              >
+                ➕ جديدة
+              </Text>
+            </Pressable>
+          </View>
 
           {/* Status Filter */}
           <ScrollView
