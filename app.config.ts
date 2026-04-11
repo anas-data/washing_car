@@ -4,22 +4,22 @@ import type { ExpoConfig } from "expo/config";
 
 // Bundle ID format: space.manus.<project_name_dots>.<timestamp>
 // e.g., "my-app" created at 2024-01-15 10:30:45 -> "space.manus.my.app.t20240115103045"
-const bundleId = "{{bundle_id}}";
+const bundleId = "space.manus.car.wash.inventory.t20260411";
 // Extract timestamp from bundle ID and prefix with "manus" for deep link scheme
 // e.g., "space.manus.my.app.t20240115103045" -> "manus20240115103045"
 const timestamp = bundleId.split(".").pop()?.replace(/^t/, "") ?? "";
-const schemeFromBundleId = `manus${timestamp}`;
+const schemeFromBundleId = `manus20260411`;
 
 const env = {
   // App branding - update these values directly (do not use env vars)
   appName: "منفذ السلامة",
-  appSlug: "car_wash_inventory",
+  appSlug: "carwashinventory",
   // S3 URL of the app logo - set this to the URL returned by generate_image when creating custom logo
   // Leave empty to use the default icon from assets/images/icon.png
   logoUrl: "",
-  scheme: schemeFromBundleId,
-  iosBundleId: bundleId,
-  androidPackage: bundleId,
+  scheme: "manus20260411",
+  iosBundleId: "space.manus.car.wash.inventory",
+  androidPackage: "space.manus.car.wash.inventory",
 };
 
 const config: ExpoConfig = {
@@ -33,7 +33,7 @@ const config: ExpoConfig = {
   newArchEnabled: true,
   ios: {
     supportsTablet: true,
-    bundleIdentifier: env.iosBundleId,
+    bundleIdentifier: "space.manus.car.wash.inventory",
   },
   android: {
     adaptiveIcon: {
@@ -44,7 +44,7 @@ const config: ExpoConfig = {
     },
     edgeToEdgeEnabled: true,
     predictiveBackGestureEnabled: false,
-    package: env.androidPackage,
+    package: "space.manus.car.wash.inventory",
     permissions: ["POST_NOTIFICATIONS"],
     intentFilters: [
       {
