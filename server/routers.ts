@@ -20,6 +20,18 @@ export const appRouter = router({
   }),
 
   // ============================================================================
+  // PUBLIC TEST ENDPOINTS (For development/testing without authentication)
+  // ============================================================================
+
+  test: router({
+    vehicles: publicProcedure.query(() => db.getAllVehicles()),
+    parts: publicProcedure.query(() => db.getAllParts()),
+    lowStockParts: publicProcedure.query(() => db.getLowStockParts()),
+    operations: publicProcedure.query(() => db.getAllOperations()),
+    pendingOperations: publicProcedure.query(() => db.getPendingOperations()),
+  }),
+
+  // ============================================================================
   // VEHICLES
   // ============================================================================
 

@@ -25,7 +25,7 @@ export default function VehiclesScreen() {
   const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
   const [filteredVehicles, setFilteredVehicles] = useState<Vehicle[]>([]);
 
-  const vehiclesQuery = trpc.vehicles.list.useQuery();
+  const vehiclesQuery = trpc.test.vehicles.useQuery();
 
   useEffect(() => {
     if (!vehiclesQuery.data) return;

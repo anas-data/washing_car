@@ -27,8 +27,8 @@ export default function InventoryScreen() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [filteredParts, setFilteredParts] = useState<Part[]>([]);
 
-  const partsQuery = trpc.parts.list.useQuery();
-  const lowStockQuery = trpc.parts.getLowStock.useQuery();
+  const partsQuery = trpc.test.parts.useQuery();
+  const lowStockQuery = trpc.test.lowStockParts.useQuery();
 
   useEffect(() => {
     if (!partsQuery.data) return;

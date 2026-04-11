@@ -204,13 +204,13 @@ export async function getPartById(partId: number) {
 export async function getAllParts() {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(parts).orderBy(desc(parts.createdAt));
+  return await db.select().from(parts).orderBy(desc(parts.createdAt));
 }
 
 export async function searchParts(query: string) {
   const db = await getDb();
   if (!db) return [];
-  return db
+  return await db
     .select()
     .from(parts)
     .where(
@@ -226,13 +226,13 @@ export async function searchParts(query: string) {
 export async function getPartsByCategory(category: string) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(parts).where(eq(parts.category, category)).orderBy(desc(parts.createdAt));
+  return await db.select().from(parts).where(eq(parts.category, category)).orderBy(desc(parts.createdAt));
 }
 
 export async function getLowStockParts() {
   const db = await getDb();
   if (!db) return [];
-  return db
+  return await db
     .select()
     .from(parts)
     .where(gte(parts.alertThreshold, parts.quantityAvailable))
@@ -272,13 +272,13 @@ export async function getOperationById(operationId: number) {
 export async function getAllOperations() {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(operations).orderBy(desc(operations.operationDate));
+  return await db.select().from(operations).orderBy(desc(operations.operationDate));
 }
 
 export async function getPendingOperations() {
   const db = await getDb();
   if (!db) return [];
-  return db
+  return await db
     .select()
     .from(operations)
     .where(eq(operations.status, "pending"))
@@ -288,7 +288,7 @@ export async function getPendingOperations() {
 export async function getOperationsByVehicle(vehicleId: number) {
   const db = await getDb();
   if (!db) return [];
-  return db
+  return await db
     .select()
     .from(operations)
     .where(eq(operations.vehicleId, vehicleId))
@@ -298,7 +298,7 @@ export async function getOperationsByVehicle(vehicleId: number) {
 export async function getOperationsByPart(partId: number) {
   const db = await getDb();
   if (!db) return [];
-  return db
+  return await db
     .select()
     .from(operations)
     .where(eq(operations.partId, partId))

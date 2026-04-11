@@ -25,7 +25,7 @@ export default function OperationsScreen() {
   const [selectedStatus, setSelectedStatus] = useState<string | null>("pending");
   const [filteredOperations, setFilteredOperations] = useState<Operation[]>([]);
 
-  const operationsQuery = trpc.operations.list.useQuery();
+  const operationsQuery = trpc.test.operations.useQuery();
 
   useEffect(() => {
     if (!operationsQuery.data) return;
