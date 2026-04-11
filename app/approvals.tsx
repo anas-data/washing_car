@@ -1,12 +1,32 @@
-import { ScrollView, Text, View, Pressable, FlatList, I18nManager, Alert } from "react-native";
+import {
+  ScrollView,
+  Text,
+  View,
+  Pressable,
+  FlatList,
+  I18nManager,
+  Alert,
+  TextInput,
+  RefreshControl,
+} from "react-native";
 import { useEffect, useState } from "react";
 import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
 import { trpc } from "@/lib/trpc";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
+import {
+  PendingOperationCard,
+  type PendingOperation,
+} from "@/components/pending-operation-card";
+import {
+  ApprovalReviewModal,
+  type ApprovalReviewData,
+} from "@/components/approval-review-modal";
 
 I18nManager.forceRTL(true);
+
+type FilterStatus = "all" | "pending" | "approved" | "rejected";
 
 interface Approval {
   id: number;
@@ -19,11 +39,24 @@ interface Approval {
   createdAt: Date;
 }
 
+interface MockPendingOperation extends PendingOperation {}
+
 export default function ApprovalsScreen() {
   const colors = useColors();
   const router = useRouter();
   const [approvals, setApprovals] = useState<Approval[]>([]);
+  const [operations, setOperations] = useState<MockPendingOperation[]>([]);
+  const [filteredOperations, setFilteredOperations] = useState<
+    MockPendingOperation[]
+  >([]);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterStatus, setFilterStatus] = useState<FilterStatus>("pending");
+  const [selectedOperation, setSelectedOperation] =
+    useState<ApprovalReviewData | null>(null);
+  const [reviewModalVisible, setReviewModalVisible] = useState(false);
+  const [reviewLoading, setReviewLoading] = useState(false);
 
   const approvalsQuery = trpc.approvals.getPending.useQuery();
   const approveFirstLevelMutation = trpc.approvals.approveFirstLevel.useMutation();
@@ -34,8 +67,166 @@ export default function ApprovalsScreen() {
   useEffect(() => {
     if (approvalsQuery.data) {
       setApprovals(approvalsQuery.data);
+      loadOperations();
     }
   }, [approvalsQuery.data]);
+
+  const loadOperations = async () => {
+    setLoading(true);
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    const mockOperations: MockPendingOperation[] = [
+      {
+        id: 1,
+        code: "OP-2026-001",
+        operationType: "addition",
+        vehicleName: "سيارة 1",
+        partName: "إطار",
+        quantity: 4,
+        driverName: "أحمد محمد",
+        createdAt: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
+        firstLevelStatus: "pending",
+        secondLevelStatus: "pending",
+        requestedByName: "محمد علي",
+      },
+      {
+        id: 2,
+        code: "OP-2026-002",
+        operationType: "consumption",
+        vehicleName: "سيارة 2",
+        partName: "زيت محرك",
+        quantity: 2,
+        driverName: "سارة أحمد",
+        createdAt: new Date(Date.now() - 1000 * 60 * 60).toISOString(),
+        firstLevelStatus: "approved",
+        secondLevelStatus: "pending",
+        requestedByName: "فاطمة محمود",
+      },
+    ];
+
+    setOperations(mockOperations);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    let filtered = operations;
+
+    if (filterStatus === "pending") {
+      filtered = filtered.filter(
+        (op) =>
+          op.firstLevelStatus === "pending" || op.secondLevelStatus === "pending"
+      );
+    } else if (filterStatus === "approved") {
+      filtered = filtered.filter(
+        (op) =>
+          op.firstLevelStatus === "approved" &&
+          op.secondLevelStatus === "approved"
+      );
+    } else if (filterStatus === "rejected") {
+      filtered = filtered.filter(
+        (op) =>
+          op.firstLevelStatus === "rejected" ||
+          op.secondLevelStatus === "rejected"
+      );
+    }
+
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(
+        (op) =>
+          op.code.toLowerCase().includes(query) ||
+          op.vehicleName.toLowerCase().includes(query) ||
+          op.partName.toLowerCase().includes(query)
+      );
+    }
+
+    setFilteredOperations(filtered);
+  }, [operations, searchQuery, filterStatus]);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadOperations();
+    setRefreshing(false);
+  };
+
+  const handleOperationPress = (operationId: number) => {
+    const operation = operations.find((op) => op.id === operationId);
+    if (operation) {
+      const currentLevel =
+        operation.firstLevelStatus === "pending" ? (1 as const) : (2 as const);
+
+      setSelectedOperation({
+        operationId: operation.id,
+        operationCode: operation.code,
+        operationType: operation.operationType,
+        vehicleName: operation.vehicleName,
+        partName: operation.partName,
+        quantity: operation.quantity,
+        driverName: operation.driverName,
+        createdAt: operation.createdAt,
+        requestedByName: operation.requestedByName,
+        currentApprovalLevel: currentLevel,
+      });
+      setReviewModalVisible(true);
+    }
+  };
+
+  const handleApprove = async (operationId: number, notes: string) => {
+    setReviewLoading(true);
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
+    setOperations((prevOps) =>
+      prevOps.map((op) => {
+        if (op.id === operationId) {
+          return {
+            ...op,
+            firstLevelStatus:
+              op.firstLevelStatus === "pending" ? "approved" : op.firstLevelStatus,
+            secondLevelStatus:
+              op.secondLevelStatus === "pending" ? "approved" : op.secondLevelStatus,
+          };
+        }
+        return op;
+      })
+    );
+
+    setReviewLoading(false);
+    setReviewModalVisible(false);
+
+    Alert.alert("نجح", "تمت الموافقة على العملية بنجاح");
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  };
+
+  const handleReject = async (operationId: number, reason: string) => {
+    setReviewLoading(true);
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
+    setOperations((prevOps) =>
+      prevOps.map((op) => {
+        if (op.id === operationId) {
+          return {
+            ...op,
+            firstLevelStatus:
+              op.firstLevelStatus === "pending" ? "rejected" : op.firstLevelStatus,
+            secondLevelStatus:
+              op.secondLevelStatus === "pending" ? "rejected" : op.secondLevelStatus,
+          };
+        }
+        return op;
+      })
+    );
+
+    setReviewLoading(false);
+    setReviewModalVisible(false);
+
+    Alert.alert("تم", "تم رفض العملية");
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+  };
+
+  const pendingCount = operations.filter(
+    (op) =>
+      op.firstLevelStatus === "pending" || op.secondLevelStatus === "pending"
+  ).length;
 
   const handleApproveFirstLevel = async (approvalId: number) => {
     try {
