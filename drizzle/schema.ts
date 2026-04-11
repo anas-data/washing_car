@@ -159,6 +159,91 @@ export const dailyReports = mysqlTable("dailyReports", {
 });
 
 // ============================================================================
+// ROLES TABLE
+// ============================================================================
+
+export const roles = mysqlTable("roles", {
+  id: int("id").autoincrement().primaryKey(),
+  code: varchar("code", { length: 50 }).notNull().unique(),
+  name: varchar("name", { length: 100 }).notNull(),
+  description: text("description"),
+  isSystem: boolean("isSystem").default(false).notNull(), // System roles cannot be deleted
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Role = typeof roles.$inferSelect;
+export type InsertRole = typeof roles.$inferInsert;
+
+// ============================================================================
+// PERMISSIONS TABLE
+// ============================================================================
+
+export const permissions = mysqlTable("permissions", {
+  id: int("id").autoincrement().primaryKey(),
+  code: varchar("code", { length: 100 }).notNull().unique(),
+  name: varchar("name", { length: 100 }).notNull(),
+  description: text("description"),
+  category: varchar("category", { length: 50 }).notNull(), // e.g., "users", "inventory", "operations", "approvals"
+  action: varchar("action", { length: 50 }).notNull(), // e.g., "view", "create", "edit", "delete", "approve"
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type Permission = typeof permissions.$inferSelect;
+export type InsertPermission = typeof permissions.$inferInsert;
+
+// ============================================================================
+// ROLE PERMISSIONS JUNCTION TABLE
+// ============================================================================
+
+export const rolePermissions = mysqlTable("rolePermissions", {
+  id: int("id").autoincrement().primaryKey(),
+  roleId: int("roleId").notNull(),
+  permissionId: int("permissionId").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type RolePermission = typeof rolePermissions.$inferSelect;
+export type InsertRolePermission = typeof rolePermissions.$inferInsert;
+
+// ============================================================================
+// USER ROLES JUNCTION TABLE
+// ============================================================================
+
+export const userRoles = mysqlTable("userRoles", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  roleId: int("roleId").notNull(),
+  assignedAt: timestamp("assignedAt").defaultNow().notNull(),
+  assignedById: int("assignedById").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type UserRole = typeof userRoles.$inferSelect;
+export type InsertUserRole = typeof userRoles.$inferInsert;
+
+// ============================================================================
+// ACTIVITY LOG TABLE
+// ============================================================================
+
+export const activityLogs = mysqlTable("activityLogs", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  action: varchar("action", { length: 100 }).notNull(), // e.g., "user_created", "role_assigned", "permission_changed"
+  entityType: varchar("entityType", { length: 50 }).notNull(), // e.g., "user", "role", "permission"
+  entityId: int("entityId"),
+  entityName: varchar("entityName", { length: 255 }),
+  changes: text("changes"), // JSON string of what changed
+  description: text("description"),
+  ipAddress: varchar("ipAddress", { length: 45 }),
+  userAgent: text("userAgent"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type ActivityLog = typeof activityLogs.$inferSelect;
+export type InsertActivityLog = typeof activityLogs.$inferInsert;
+
+// ============================================================================
 // MONTHLY REPORTS TABLE
 // ============================================================================
 
@@ -202,3 +287,5 @@ export type InsertDailyReport = typeof dailyReports.$inferInsert;
 
 export type MonthlyReport = typeof monthlyReports.$inferSelect;
 export type InsertMonthlyReport = typeof monthlyReports.$inferInsert;
+
+
