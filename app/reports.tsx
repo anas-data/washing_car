@@ -9,8 +9,11 @@ I18nManager.forceRTL(true);
 
 export default function ReportsScreen() {
   const colors = useColors();
-  const [reportType, setReportType] = useState<"daily" | "monthly">("daily");
+  const [reportType, setReportType] = useState<"daily" | "monthly" | "custom">("daily");
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [customStartDate, setCustomStartDate] = useState(new Date(new Date().setDate(new Date().getDate() - 7)));
+  const [customEndDate, setCustomEndDate] = useState(new Date());
+  const [showCustomPicker, setShowCustomPicker] = useState(false);
 
   const vehiclesQuery = trpc.vehicles.list.useQuery();
   const partsQuery = trpc.parts.list.useQuery();
@@ -21,6 +24,15 @@ export default function ReportsScreen() {
     const newDate = new Date(selectedDate);
     newDate.setDate(newDate.getDate() + days);
     setSelectedDate(newDate);
+  };
+
+  const handleCustomDateChange = (startDays: number, endDays: number) => {
+    const newStart = new Date(customStartDate);
+    const newEnd = new Date(customEndDate);
+    newStart.setDate(newStart.getDate() + startDays);
+    newEnd.setDate(newEnd.getDate() + endDays);
+    setCustomStartDate(newStart);
+    setCustomEndDate(newEnd);
   };
 
   const getMonthName = (date: Date) => {
@@ -39,6 +51,14 @@ export default function ReportsScreen() {
       "ديسمبر",
     ];
     return months[date.getMonth()];
+  };
+
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString("ar-SA", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
   };
 
   const StatBox = ({
@@ -235,7 +255,35 @@ export default function ReportsScreen() {
                   fontWeight: "600",
                 }}
               >
-                تقرير شهري
+                شهري
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                setReportType("custom");
+                setShowCustomPicker(true);
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }}
+              style={({ pressed }) => [
+                {
+                  flex: 1,
+                  backgroundColor:
+                    reportType === "custom" ? colors.primary : colors.surface,
+                  paddingVertical: 10,
+                  borderRadius: 8,
+                  alignItems: "center",
+                  opacity: pressed ? 0.7 : 1,
+                },
+              ]}
+            >
+              <Text
+                style={{
+                  color: reportType === "custom" ? "#ffffff" : colors.foreground,
+                  fontSize: 12,
+                  fontWeight: "600",
+                }}
+              >
+                مخصص
               </Text>
             </Pressable>
           </View>
