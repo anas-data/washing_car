@@ -1,14 +1,16 @@
-import { ScrollView, Text, View, Pressable, I18nManager, Alert } from "react-native";
+import { ScrollView, Text, View, Pressable, I18nManager, RefreshControl } from "react-native";
 import { useEffect, useState } from "react";
 import { ScreenContainer } from "@/components/screen-container";
-import { ScreenHeader, type HeaderButton } from "@/components/screen-header";
-import { ActionButtons, type ActionButton } from "@/components/action-buttons";
 import { useColors } from "@/hooks/use-colors";
 import { useAuth } from "@/hooks/use-auth";
 import { trpc } from "@/lib/trpc";
 import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
 import { useNotificationTriggers } from "@/hooks/use-notification-triggers";
+import { DashboardStats, LargeStatCard } from "@/components/dashboard-stats";
+import { DashboardChart } from "@/components/dashboard-chart";
+import { RecentActivity } from "@/components/recent-activity";
+import { AlertBanner } from "@/components/alert-banner";
 
 // Force RTL layout for Arabic
 if (typeof I18nManager !== 'undefined' && I18nManager.forceRTL) {
@@ -29,6 +31,7 @@ export default function HomeScreen() {
   const colors = useColors();
   const { user } = useAuth();
   const router = useRouter();
+  const [refreshing, setRefreshing] = useState(false);
   
   // Initialize notification triggers
   useNotificationTriggers();
@@ -47,7 +50,6 @@ export default function HomeScreen() {
   const partsQuery = trpc.test.parts.useQuery();
   const lowStockQuery = trpc.test.lowStockParts.useQuery();
   const operationsQuery = trpc.test.pendingOperations.useQuery();
-  // For approvals, we still need auth, so use a fallback
   const approvalsQuery = trpc.approvals.getPending.useQuery(undefined, { enabled: !!user });
   const [approvalsData, setApprovalsData] = useState<any[]>([]);
 
@@ -85,110 +87,72 @@ export default function HomeScreen() {
     router.push(route as any);
   };
 
-  const StatCard = ({
-    label,
-    value,
-    icon,
-    route,
-    color,
-  }: {
-    label: string;
-    value: number | string;
-    icon: string;
-    route: string;
-    color: string;
-  }) => (
-    <Pressable
-      onPress={() => handleCardPress(route)}
-      style={({ pressed }) => [
-        {
-          flex: 1,
-          backgroundColor: colors.surface,
-          borderRadius: 12,
-          padding: 16,
-          marginHorizontal: 6,
-          marginVertical: 8,
-          borderLeftWidth: 4,
-          borderLeftColor: color,
-          opacity: pressed ? 0.7 : 1,
-        },
-      ]}
-    >
-      <Text
-        style={{
-          fontSize: 28,
-          marginBottom: 8,
-        }}
-      >
-        {icon}
-      </Text>
-      <Text
-        style={{
-          fontSize: 24,
-          fontWeight: "700",
-          color: colors.foreground,
-          marginBottom: 4,
-        }}
-      >
-        {value}
-      </Text>
-      <Text
-        style={{
-          fontSize: 12,
-          color: colors.muted,
-        }}
-      >
-        {label}
-      </Text>
-    </Pressable>
-  );
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([
+      vehiclesQuery.refetch(),
+      partsQuery.refetch(),
+      lowStockQuery.refetch(),
+      operationsQuery.refetch(),
+      approvalsQuery.refetch(),
+    ]);
+    setRefreshing(false);
+  };
 
-  const ActionButton = ({
-    label,
-    icon,
-    route,
-    color,
-  }: {
-    label: string;
-    icon: string;
-    route: string;
-    color: string;
-  }) => (
-    <Pressable
-      onPress={() => handleCardPress(route)}
-      style={({ pressed }) => [
-        {
-          flex: 1,
-          backgroundColor: color,
-          borderRadius: 12,
-          padding: 16,
-          marginHorizontal: 6,
-          marginVertical: 8,
-          alignItems: "center",
-          justifyContent: "center",
-          opacity: pressed ? 0.85 : 1,
-        },
-      ]}
-    >
-      <Text style={{ fontSize: 32, marginBottom: 8 }}>{icon}</Text>
-      <Text
-        style={{
-          fontSize: 14,
-          fontWeight: "600",
-          color: "#ffffff",
-          textAlign: "center",
-        }}
-      >
-        {label}
-      </Text>
-    </Pressable>
-  );
+  // Prepare chart data
+  const partsDistribution = [
+    { label: "متوفر", value: Math.max(0, stats.totalParts - stats.lowStockParts) },
+    { label: "حد تنبيه", value: stats.lowStockParts },
+  ];
+
+  const vehiclesStatus = [
+    { label: "نشط", value: stats.activeVehicles },
+    { label: "غير نشط", value: stats.totalVehicles - stats.activeVehicles },
+  ];
+
+  // Prepare activity data
+  const recentActivities = [
+    {
+      id: "1",
+      title: "عملية جديدة",
+      description: "تم إنشاء عملية صيانة جديدة",
+      timestamp: new Date(Date.now() - 5 * 60000),
+      icon: "🔧",
+      type: "operation" as const,
+      status: "pending" as const,
+    },
+    {
+      id: "2",
+      title: "موافقة مطلوبة",
+      description: "طلب موافقة على عملية صيانة",
+      timestamp: new Date(Date.now() - 15 * 60000),
+      icon: "✓",
+      type: "approval" as const,
+      status: "pending" as const,
+    },
+    {
+      id: "3",
+      title: "تنبيه مخزون",
+      description: "القطعة #5 وصلت حد التنبيه",
+      timestamp: new Date(Date.now() - 30 * 60000),
+      icon: "⚠️",
+      type: "alert" as const,
+      status: "completed" as const,
+    },
+  ];
 
   return (
     <ScreenContainer className="bg-background">
       <ScrollView
         contentContainerStyle={{ flexGrow: 1 }}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+          />
+        }
       >
         {/* Header */}
         <View style={{ padding: 16, paddingBottom: 8 }}>
@@ -212,200 +176,241 @@ export default function HomeScreen() {
           </Text>
         </View>
 
-        {/* Alert Banner */}
-        {stats.lowStockParts > 0 && (
-          <View
-            style={{
-              marginHorizontal: 16,
-              marginVertical: 12,
-              backgroundColor: "#FEF3C7",
-              borderRadius: 12,
-              padding: 12,
-              borderLeftWidth: 4,
-              borderLeftColor: "#F59E0B",
-            }}
-          >
-            <Text
-              style={{
-                fontSize: 14,
-                fontWeight: "600",
-                color: "#92400E",
+        {/* Alert Banners */}
+        <View style={{ paddingHorizontal: 16, paddingTop: 8 }}>
+          {stats.lowStockParts > 0 && (
+            <AlertBanner
+              type="warning"
+              title="تنبيه المخزون"
+              message={`${stats.lowStockParts} قطع وصلت حد التنبيه. يرجى مراجعة المخزون المنخفض`}
+              action={{
+                label: "عرض التفاصيل",
+                onPress: () => handleCardPress("/inventory"),
               }}
-            >
-              ⚠️ {stats.lowStockParts} قطع بحد التنبيه
-            </Text>
-            <Text
-              style={{
-                fontSize: 12,
-                color: "#B45309",
-                marginTop: 4,
+            />
+          )}
+
+          {stats.pendingApprovals > 0 && (user as any)?.role === "admin" && (
+            <AlertBanner
+              type="info"
+              title="موافقات معلقة"
+              message={`لديك ${stats.pendingApprovals} طلب موافقة ينتظر إجراءك`}
+              action={{
+                label: "عرض الموافقات",
+                onPress: () => handleCardPress("/approvals"),
               }}
-            >
-              يرجى مراجعة المخزون المنخفض
-            </Text>
-          </View>
-        )}
+            />
+          )}
+        </View>
 
-        {/* Pending Approvals Alert */}
-        {stats.pendingApprovals > 0 && (user as any)?.role === "admin" && (
-          <View
-            style={{
-              marginHorizontal: 16,
-              marginVertical: 12,
-              backgroundColor: "#DBEAFE",
-              borderRadius: 12,
-              padding: 12,
-              borderLeftWidth: 4,
-              borderLeftColor: "#0a7ea4",
-            }}
-          >
-            <Text
-              style={{
-                fontSize: 14,
-                fontWeight: "600",
-                color: "#0C4A6E",
-              }}
-            >
-              📋 {stats.pendingApprovals} موافقات قيد الانتظار
-            </Text>
-            <Text
-              style={{
-                fontSize: 12,
-                color: "#075985",
-                marginTop: 4,
-              }}
-            >
-              هناك عمليات تنتظر موافقتك
-            </Text>
-          </View>
-        )}
+        {/* Main Stats Cards */}
+        <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
+          <DashboardStats
+            columns={2}
+            items={[
+              {
+                id: "vehicles",
+                label: "المركبات النشطة",
+                value: `${stats.activeVehicles}/${stats.totalVehicles}`,
+                icon: "🚗",
+                color: colors.primary,
+                trend: { direction: "up", percentage: 5 },
+                onPress: () => handleCardPress("/vehicles"),
+              },
+              {
+                id: "parts",
+                label: "إجمالي القطع",
+                value: stats.totalParts,
+                icon: "🔧",
+                color: colors.success,
+                onPress: () => handleCardPress("/inventory"),
+              },
+              {
+                id: "operations",
+                label: "عمليات معلقة",
+                value: stats.pendingOperations,
+                icon: "⏳",
+                color: colors.warning,
+                trend: { direction: "down", percentage: 10 },
+                onPress: () => handleCardPress("/operations"),
+              },
+              {
+                id: "approvals",
+                label: "موافقات معلقة",
+                value: stats.pendingApprovals,
+                icon: "✓",
+                color: colors.error,
+                onPress: () => handleCardPress("/approvals"),
+              },
+            ]}
+          />
+        </View>
 
-        {/* Dashboard Stats */}
-        <View style={{ marginTop: 16 }}>
-          <Text
-            style={{
-              fontSize: 16,
-              fontWeight: "600",
-              color: colors.foreground,
-              marginHorizontal: 16,
-              marginBottom: 12,
-            }}
-          >
-            إحصائيات سريعة
-          </Text>
+        {/* Large Stat Cards */}
+        <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
+          <LargeStatCard
+            label="المخزون المنخفض"
+            value={stats.lowStockParts}
+            icon="📦"
+            color={colors.warning}
+            description={`${stats.lowStockParts} من ${stats.totalParts} قطعة وصلت حد التنبيه`}
+            onPress={() => handleCardPress("/inventory")}
+          />
+        </View>
 
-          <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
-            <StatCard
-              label="إجمالي المركبات"
-              value={stats.totalVehicles}
-              icon="🚗"
-              route="/vehicles"
-              color={colors.primary}
-            />
-            <StatCard
-              label="المركبات النشطة"
-              value={stats.activeVehicles}
-              icon="✅"
-              route="/vehicles"
-              color={colors.success}
-            />
-          </View>
+        {/* Charts */}
+        <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
+          <DashboardChart
+            title="توزيع المخزون"
+            data={partsDistribution}
+            type="pie"
+          />
 
-          <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
-            <StatCard
-              label="إجمالي القطع"
-              value={stats.totalParts}
-              icon="🔧"
-              route="/inventory"
-              color={colors.primary}
-            />
-            <StatCard
-              label="قطع بحد تنبيه"
-              value={stats.lowStockParts}
-              icon="⚠️"
-              route="/inventory"
-              color={colors.warning}
-            />
-          </View>
+          <DashboardChart
+            title="حالة المركبات"
+            data={vehiclesStatus}
+            type="bar"
+          />
+        </View>
 
-          <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
-            <StatCard
-              label="عمليات قيد الانتظار"
-              value={stats.pendingOperations}
-              icon="⏳"
-              route="/operations"
-              color={colors.warning}
-            />
-            <StatCard
-              label="موافقات قيد الانتظار"
-              value={stats.pendingApprovals}
-              icon="📋"
-              route="/approvals"
-              color={colors.primary}
-            />
-          </View>
+        {/* Recent Activity */}
+        <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
+          <RecentActivity
+            items={recentActivities}
+            title="آخر الأنشطة"
+            maxItems={3}
+            onViewAll={() => handleCardPress("/notifications")}
+          />
         </View>
 
         {/* Quick Actions */}
-        <View style={{ marginTop: 24, marginBottom: 32 }}>
+        <View style={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 32 }}>
           <Text
             style={{
               fontSize: 16,
               fontWeight: "600",
               color: colors.foreground,
-              marginHorizontal: 16,
               marginBottom: 12,
             }}
           >
             الإجراءات السريعة
           </Text>
 
-          <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
-            <ActionButton
-              label="إضافة عملية"
-              icon="➕"
-              route="/operations/create"
-              color={colors.primary}
-            />
-            <ActionButton
-              label="إدارة المخزون"
-              icon="📦"
-              route="/inventory"
-              color={colors.success}
-            />
-          </View>
+          <View
+            style={{
+              flexDirection: "row",
+              gap: 8,
+              flexWrap: "wrap",
+            }}
+          >
+            <Pressable
+              onPress={() => handleCardPress("/operations/add")}
+              style={({ pressed }) => [
+                {
+                  flex: 1,
+                  minWidth: "48%",
+                  backgroundColor: colors.primary,
+                  borderRadius: 12,
+                  padding: 12,
+                  alignItems: "center",
+                  opacity: pressed ? 0.85 : 1,
+                },
+              ]}
+            >
+              <Text style={{ fontSize: 24, marginBottom: 4 }}>➕</Text>
+              <Text
+                style={{
+                  fontSize: 12,
+                  fontWeight: "600",
+                  color: "#ffffff",
+                  textAlign: "center",
+                }}
+              >
+                عملية جديدة
+              </Text>
+            </Pressable>
 
-          <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
-            <ActionButton
-              label="المركبات"
-              icon="🚗"
-              route="/vehicles"
-              color="#8B5CF6"
-            />
-            <ActionButton
-              label="التقارير"
-              icon="📊"
-              route="/reports"
-              color="#EC4899"
-            />
-          </View>
+            <Pressable
+              onPress={() => handleCardPress("/inventory")}
+              style={({ pressed }) => [
+                {
+                  flex: 1,
+                  minWidth: "48%",
+                  backgroundColor: colors.success,
+                  borderRadius: 12,
+                  padding: 12,
+                  alignItems: "center",
+                  opacity: pressed ? 0.85 : 1,
+                },
+              ]}
+            >
+              <Text style={{ fontSize: 24, marginBottom: 4 }}>📊</Text>
+              <Text
+                style={{
+                  fontSize: 12,
+                  fontWeight: "600",
+                  color: "#ffffff",
+                  textAlign: "center",
+                }}
+              >
+                المخزون
+              </Text>
+            </Pressable>
 
-          {(user as any)?.role === "admin" && (
-            <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
-              <ActionButton
-                label="الموافقات"
-                icon="✔️"
-                route="/approvals"
-                color="#F59E0B"
-              />
-              <ActionButton
-                label="الإعدادات"
-                icon="⚙️"
-                route="/settings"
-                color="#6B7280"
-              />
-            </View>
-          )}
+            <Pressable
+              onPress={() => handleCardPress("/reports")}
+              style={({ pressed }) => [
+                {
+                  flex: 1,
+                  minWidth: "48%",
+                  backgroundColor: colors.primary,
+                  borderRadius: 12,
+                  padding: 12,
+                  alignItems: "center",
+                  opacity: pressed ? 0.85 : 1,
+                },
+              ]}
+            >
+              <Text style={{ fontSize: 24, marginBottom: 4 }}>📈</Text>
+              <Text
+                style={{
+                  fontSize: 12,
+                  fontWeight: "600",
+                  color: "#ffffff",
+                  textAlign: "center",
+                }}
+              >
+                التقارير
+              </Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() => handleCardPress("/settings")}
+              style={({ pressed }) => [
+                {
+                  flex: 1,
+                  minWidth: "48%",
+                  backgroundColor: colors.muted,
+                  borderRadius: 12,
+                  padding: 12,
+                  alignItems: "center",
+                  opacity: pressed ? 0.85 : 1,
+                },
+              ]}
+            >
+              <Text style={{ fontSize: 24, marginBottom: 4 }}>⚙️</Text>
+              <Text
+                style={{
+                  fontSize: 12,
+                  fontWeight: "600",
+                  color: "#ffffff",
+                  textAlign: "center",
+                }}
+              >
+                الإعدادات
+              </Text>
+            </Pressable>
+          </View>
         </View>
       </ScrollView>
     </ScreenContainer>
