@@ -226,3 +226,62 @@ class SyncService {
 }
 
 export const syncService = new SyncService();
+
+
+/**
+ * Enhanced error handling for sync failures
+ */
+export class SyncError extends Error {
+  constructor(
+    public code: string,
+    public retryable: boolean,
+    message: string
+  ) {
+    super(message);
+    this.name = "SyncError";
+  }
+}
+
+/**
+ * Retry logic for failed sync operations
+ */
+export interface RetryPolicy {
+  maxAttempts: number;
+  initialDelayMs: number;
+  maxDelayMs: number;
+  backoffMultiplier: number;
+}
+
+const DEFAULT_RETRY_POLICY: RetryPolicy = {
+  maxAttempts: 3,
+  initialDelayMs: 1000,
+  maxDelayMs: 10000,
+  backoffMultiplier: 2,
+};
+
+/**
+ * Execute with retry logic
+ */
+export async function executeWithRetry<T>(
+  operation: () => Promise<T>,
+  policy: RetryPolicy = DEFAULT_RETRY_POLICY
+): Promise<T> {
+  let lastError: Error | null = null;
+  let delay = policy.initialDelayMs;
+
+  for (let attempt = 0; attempt < policy.maxAttempts; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error as Error;
+      
+      if (attempt < policy.maxAttempts - 1) {
+        console.log(`Retry attempt ${attempt + 1}/${policy.maxAttempts} after ${delay}ms`);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        delay = Math.min(delay * policy.backoffMultiplier, policy.maxDelayMs);
+      }
+    }
+  }
+
+  throw lastError || new Error("Operation failed after retries");
+}
