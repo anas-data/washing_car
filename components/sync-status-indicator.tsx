@@ -1,6 +1,6 @@
 import { View, Text, ActivityIndicator } from "react-native";
 import { useColors } from "@/hooks/use-colors";
-import { useSyncIntegration } from "@/hooks/use-sync-integration";
+import { syncService } from "@/lib/sync-service";
 import { useEffect, useState } from "react";
 
 /**
@@ -10,16 +10,15 @@ import { useEffect, useState } from "react";
 
 export function SyncStatusIndicator() {
   const colors = useColors();
-  const { getSyncState } = useSyncIntegration();
-  const [syncState, setSyncState] = useState(getSyncState());
+  const [syncState, setSyncState] = useState(syncService.getSyncState());
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setSyncState(getSyncState());
+      setSyncState(syncService.getSyncState());
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [getSyncState]);
+  }, []);
 
   const getPendingCount = () => syncState.pendingChanges.length;
   const isSyncing = syncState.syncInProgress;
