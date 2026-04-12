@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import {
   ScrollView,
   Text,
@@ -7,15 +7,14 @@ import {
   I18nManager,
   ActivityIndicator,
   Alert,
-  Platform,
+  TextInput,
 } from "react-native";
 import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
 import { useRouter } from "expo-router";
 import { useAuth } from "@/hooks/use-auth";
 import * as Haptics from "expo-haptics";
-import * as WebBrowser from "expo-web-browser";
-import { startOAuthLogin } from "@/constants/oauth";
+import { localAuth } from "@/lib/local-auth";
 
 // Force RTL layout for Arabic
 if (typeof I18nManager !== "undefined" && I18nManager.forceRTL) {
@@ -27,6 +26,9 @@ export default function LoginScreen() {
   const router = useRouter();
   const { user, loading, isAuthenticated, refresh } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   // If user is already authenticated, redirect to home
   useEffect(() => {
@@ -35,32 +37,55 @@ export default function LoginScreen() {
     }
   }, [isAuthenticated, user, router]);
 
-  const handleGoogleSignIn = async () => {
+  const handleLogin = async () => {
     try {
+      // Validate inputs
+      if (!username.trim()) {
+        Alert.alert("خطأ", "يرجى إدخال اسم المستخدم أو البريد الإلكتروني");
+        return;
+      }
+
+      if (!password.trim()) {
+        Alert.alert("خطأ", "يرجى إدخال كلمة المرور");
+        return;
+      }
+
       setIsLoading(true);
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-      // Start OAuth login flow
-      await startOAuthLogin();
+      // Attempt login
+      const user = await localAuth.login({
+        username: username.trim(),
+        password: password.trim(),
+      });
 
-      // On web, the redirect will happen automatically
-      // On native, we need to wait for the deep link callback
-      if (Platform.OS !== "web") {
-        // Refresh auth state after a delay to check if login was successful
-        setTimeout(() => {
-          refresh();
-        }, 2000);
-      }
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+      // Refresh auth state
+      await refresh();
+
+      // Clear form
+      setUsername("");
+      setPassword("");
     } catch (error) {
-      console.error("[Login] Google sign-in error:", error);
+      console.error("[Login] Error:", error);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert(
-        "خطأ",
-        "فشل تسجيل الدخول. يرجى المحاولة مرة أخرى.",
-        [{ text: "حسناً" }]
-      );
+
+      const errorMessage =
+        error instanceof Error ? error.message : "فشل تسجيل الدخول";
+      Alert.alert("خطأ", errorMessage, [{ text: "حسناً" }]);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleGuestAccess = async () => {
+    try {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      // Navigate to home as guest (public endpoints only)
+      router.replace("/(tabs)");
+    } catch (error) {
+      console.error("[Login] Guest access error:", error);
     }
   };
 
@@ -99,100 +124,166 @@ export default function LoginScreen() {
             </Text>
             <Text
               className="mt-2 text-base text-muted"
-              style={{ textAlign: "right" }}
+              style={{ textAlign: "center" }}
             >
-              إدارة مخزون مغسلة السيارات
+              نظام إدارة مخزون مغسلة السيارات
             </Text>
           </View>
 
-          {/* Features Section */}
-          <View className="mb-12 gap-4">
-            <FeatureItem
-              icon="📦"
-              title="إدارة المخزون"
-              description="تتبع القطع والمواد بكفاءة"
-              colors={colors}
-            />
-            <FeatureItem
-              icon="🚗"
-              title="إدارة المركبات"
-              description="مراقبة حالة جميع المركبات"
-              colors={colors}
-            />
-            <FeatureItem
-              icon="✅"
-              title="الموافقات"
-              description="نظام موافقات متعدد المستويات"
-              colors={colors}
-            />
-            <FeatureItem
-              icon="📊"
-              title="التقارير"
-              description="تحليلات شاملة وتقارير مفصلة"
-              colors={colors}
-            />
-          </View>
+          {/* Login Form */}
+          <View className="mb-8">
+            {/* Username/Email Input */}
+            <View className="mb-4">
+              <Text
+                className="mb-2 text-sm font-semibold text-foreground"
+                style={{ textAlign: "right" }}
+              >
+                اسم المستخدم أو البريد الإلكتروني
+              </Text>
+              <TextInput
+                placeholder="أدخل اسم المستخدم أو البريد الإلكتروني"
+                placeholderTextColor={colors.muted}
+                value={username}
+                onChangeText={setUsername}
+                editable={!isLoading}
+                style={{
+                  backgroundColor: colors.surface,
+                  borderColor: colors.border,
+                  borderWidth: 1,
+                  borderRadius: 8,
+                  padding: 12,
+                  fontSize: 14,
+                  color: colors.foreground,
+                  textAlign: "right",
+                }}
+              />
+            </View>
 
-          {/* Login Section */}
-          <View className="gap-4">
-            {/* Google Sign-In Button */}
+            {/* Password Input */}
+            <View className="mb-6">
+              <Text
+                className="mb-2 text-sm font-semibold text-foreground"
+                style={{ textAlign: "right" }}
+              >
+                كلمة المرور
+              </Text>
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  backgroundColor: colors.surface,
+                  borderColor: colors.border,
+                  borderWidth: 1,
+                  borderRadius: 8,
+                  paddingRight: 12,
+                }}
+              >
+                <TextInput
+                  placeholder="أدخل كلمة المرور"
+                  placeholderTextColor={colors.muted}
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPassword}
+                  editable={!isLoading}
+                  style={{
+                    flex: 1,
+                    padding: 12,
+                    fontSize: 14,
+                    color: colors.foreground,
+                    textAlign: "right",
+                  }}
+                />
+                <Pressable
+                  onPress={() => setShowPassword(!showPassword)}
+                  style={{ paddingLeft: 12 }}
+                >
+                  <Text className="text-lg">{showPassword ? "👁️" : "👁️‍🗨️"}</Text>
+                </Pressable>
+              </View>
+            </View>
+
+            {/* Login Button */}
             <Pressable
-              onPress={handleGoogleSignIn}
+              onPress={handleLogin}
               disabled={isLoading}
               style={({ pressed }) => [
                 {
-                  backgroundColor: colors.surface,
-                  borderRadius: 12,
-                  padding: 16,
-                  borderWidth: 2,
-                  borderColor: colors.border,
-                  opacity: pressed || isLoading ? 0.7 : 1,
-                },
-              ]}
-            >
-              <View className="flex-row items-center justify-center gap-3">
-                {isLoading ? (
-                  <ActivityIndicator
-                    size="small"
-                    color={colors.primary}
-                    style={{ marginRight: 8 }}
-                  />
-                ) : (
-                  <Text className="text-2xl">🔐</Text>
-                )}
-                <Text
-                  className="text-center text-lg font-semibold"
-                  style={{ color: colors.foreground }}
-                >
-                  {isLoading ? "جاري التسجيل..." : "تسجيل الدخول عبر Google"}
-                </Text>
-              </View>
-            </Pressable>
-
-            {/* Demo Button (for testing without OAuth) */}
-            <Pressable
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                // Navigate to home with test endpoints
-                router.replace("/(tabs)");
-              }}
-              style={({ pressed }) => [
-                {
                   backgroundColor: colors.primary,
-                  borderRadius: 12,
-                  padding: 16,
-                  opacity: pressed ? 0.85 : 1,
+                  borderRadius: 8,
+                  padding: 14,
+                  alignItems: "center",
+                  opacity: pressed || isLoading ? 0.8 : 1,
                 },
               ]}
             >
-              <Text
-                className="text-center text-lg font-semibold"
-                style={{ color: "#ffffff" }}
-              >
-                متابعة كزائر (عرض توضيحي)
-              </Text>
+              {isLoading ? (
+                <ActivityIndicator color={colors.background} size="small" />
+              ) : (
+                <Text
+                  className="text-base font-semibold text-background"
+                  style={{ textAlign: "center" }}
+                >
+                  تسجيل الدخول
+                </Text>
+              )}
             </Pressable>
           </View>
+
+          {/* Demo Credentials */}
+          <View
+            className="mb-8 rounded-lg p-4"
+            style={{ backgroundColor: colors.surface }}
+          >
+            <Text
+              className="mb-3 text-sm font-semibold text-foreground"
+              style={{ textAlign: "right" }}
+            >
+              بيانات تجريبية:
+            </Text>
+            <View className="gap-2">
+              <Text
+                className="text-xs text-muted"
+                style={{ textAlign: "right" }}
+              >
+                👤 اسم المستخدم: admin
+              </Text>
+              <Text
+                className="text-xs text-muted"
+                style={{ textAlign: "right" }}
+              >
+                🔑 كلمة المرور: admin123
+              </Text>
+              <Text
+                className="mt-2 text-xs text-muted"
+                style={{ textAlign: "right" }}
+              >
+                أو استخدم: employee / emp123
+              </Text>
+            </View>
+          </View>
+
+          {/* Guest Access Button */}
+          <Pressable
+            onPress={handleGuestAccess}
+            disabled={isLoading}
+            style={({ pressed }) => [
+              {
+                borderColor: colors.primary,
+                borderWidth: 1,
+                borderRadius: 8,
+                padding: 14,
+                alignItems: "center",
+                opacity: pressed || isLoading ? 0.7 : 1,
+              },
+            ]}
+          >
+            <Text
+              className="text-base font-semibold"
+              style={{ color: colors.primary, textAlign: "center" }}
+            >
+              المتابعة كزائر
+            </Text>
+          </Pressable>
 
           {/* Footer */}
           <View className="mt-12 items-center">
@@ -200,47 +291,11 @@ export default function LoginScreen() {
               className="text-xs text-muted"
               style={{ textAlign: "center" }}
             >
-              بتسجيل الدخول، أنت توافق على شروط الخدمة وسياسة الخصوصية
+              بالمتابعة، أنت توافق على سياستنا
             </Text>
           </View>
         </View>
       </ScrollView>
     </ScreenContainer>
-  );
-}
-
-// Feature Item Component
-function FeatureItem({
-  icon,
-  title,
-  description,
-  colors,
-}: {
-  icon: string;
-  title: string;
-  description: string;
-  colors: any;
-}) {
-  return (
-    <View
-      className="flex-row items-center gap-3 rounded-lg p-4"
-      style={{ backgroundColor: colors.surface }}
-    >
-      <Text className="text-2xl">{icon}</Text>
-      <View className="flex-1">
-        <Text
-          className="text-base font-semibold text-foreground"
-          style={{ textAlign: "right" }}
-        >
-          {title}
-        </Text>
-        <Text
-          className="text-sm text-muted"
-          style={{ textAlign: "right", marginTop: 2 }}
-        >
-          {description}
-        </Text>
-      </View>
-    </View>
   );
 }

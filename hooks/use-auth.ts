@@ -1,5 +1,6 @@
 import * as Api from "@/lib/_core/api";
 import * as Auth from "@/lib/_core/auth";
+import { localAuth } from "@/lib/local-auth";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Platform } from "react-native";
 
@@ -18,6 +19,23 @@ export function useAuth(options?: UseAuthOptions) {
     try {
       setLoading(true);
       setError(null);
+
+      // Check local authentication first
+      const localUser = await localAuth.getCurrentUser();
+      if (localUser) {
+        console.log("[useAuth] Local user found:", localUser);
+        const userInfo: Auth.User = {
+          id: parseInt(localUser.id, 10),
+          openId: localUser.id,
+          name: localUser.name,
+          email: localUser.email,
+          loginMethod: "local",
+          lastSignedIn: new Date(),
+        };
+        setUser(userInfo);
+        await Auth.setUserInfo(userInfo);
+        return;
+      }
 
       // Web platform: use cookie-based auth, fetch user from API
       if (Platform.OS === "web") {
