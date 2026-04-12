@@ -54,6 +54,11 @@
     "expo-system-ui": "~6.0.9",
     "expo-video": "~3.0.15",
     "expo-web-browser": "~15.0.10",
+    "expo-print": "~13.0.0",
+    "expo-sharing": "~13.0.0",
+    "expo-document-picker": "~13.0.0",
+    "xlsx": "^0.18.5",
+    "date-fns": "^3.0.0",
     "express": "^4.22.1",
     "jose": "6.1.0",
     "mysql2": "^3.16.0",
@@ -79,6 +84,7 @@
     "@types/node": "^22.19.3",
     "@types/qrcode": "^1.5.6",
     "@types/react": "~19.1.17",
+    "@types/xlsx": "^0.0.36",
     "concurrently": "^9.2.1",
     "cross-env": "^7.0.3",
     "drizzle-kit": "^0.31.8",
@@ -91,7 +97,8 @@
     "tailwindcss": "^3.4.17",
     "tsx": "^4.21.0",
     "typescript": "~5.9.3",
-    "vitest": "^2.1.9"
+    "vitest": "^2.1.9",
+    "@types/node-schedule": "^2.1.8"
   },
   "packageManager": "pnpm@9.12.0"
 }
