@@ -36,14 +36,14 @@ export default function TabLayout() {
         <Tabs.Screen
           name="index"
           options={{
-            title: "Home",
+            title: "الرئيسية",
             tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
           }}
         />
         <Tabs.Screen
-          name="../notifications"
+          name="notifications"
           options={{
-            title: "Notifications",
+            title: "الإشعارات",
             tabBarIcon: ({ color }) => (
               <View style={{ position: "relative" }}>
                 <IconSymbol size={28} name="bell.fill" color={color} />
@@ -53,28 +53,28 @@ export default function TabLayout() {
           }}
         />
         <Tabs.Screen
-          name="../messages"
+          name="messages"
           options={{
-            title: "Messages",
+            title: "المحادثات",
             tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
           }}
         />
         <Tabs.Screen
-          name="../notes"
+          name="notes"
           options={{
-            title: "Notes",
+            title: "الملاحظات",
             tabBarIcon: ({ color }) => <IconSymbol size={28} name="doc.text.fill" color={color} />,
           }}
         />
         <Tabs.Screen
-          name="../backup"
+          name="backup"
           options={{
             title: "النسخ الاحتياطي",
             tabBarIcon: ({ color }) => <IconSymbol size={28} name="doc.text.fill" color={color} />,
           }}
         />
         <Tabs.Screen
-          name="../search"
+          name="search"
           options={{
             title: "بحث",
             tabBarIcon: ({ color }) => <IconSymbol size={28} name="magnifyingglass" color={color} />,

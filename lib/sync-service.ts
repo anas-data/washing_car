@@ -1,5 +1,5 @@
-import { trpc } from "./trpc";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { trpc } from "./trpc";
 
 /**
  * Real-time synchronization service for multi-device support
