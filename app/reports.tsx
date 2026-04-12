@@ -1,9 +1,11 @@
-import { ScrollView, Text, View, Pressable, I18nManager } from "react-native";
+import { ScrollView, Text, View, Pressable, I18nManager, Alert } from "react-native";
 import { useState } from "react";
 import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
 import { trpc } from "@/lib/trpc";
 import * as Haptics from "expo-haptics";
+import * as Print from "expo-print";
+import { generateMonthlyInventoryReport, generateInventoryReportHTML, InventoryItem } from "@/lib/inventory-report";
 
 I18nManager.forceRTL(true);
 
@@ -59,6 +61,40 @@ export default function ReportsScreen() {
       month: "long",
       day: "numeric",
     });
+  };
+
+  const handlePrintMonthlyReport = async () => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      
+      // Convert parts data to InventoryItem format
+      const inventoryItems: InventoryItem[] = (partsQuery.data || []).map((part: any) => ({
+        id: part.id,
+        name: part.name,
+        sku: part.sku,
+        quantity: part.quantity,
+        unit: part.unit,
+        unitPrice: part.unitPrice || 0,
+        totalValue: (part.quantity || 0) * (part.unitPrice || 0),
+        status: part.quantity === 0 ? 'out_of_stock' : part.quantity <= (part.minThreshold || 5) ? 'low_stock' : 'in_stock',
+        lastUpdated: new Date(part.updatedAt || new Date()),
+      }));
+
+      // Generate report
+      const report = generateMonthlyInventoryReport(inventoryItems, selectedDate);
+      const htmlContent = generateInventoryReportHTML(report);
+
+      // Print or share
+      await Print.printAsync({
+        html: htmlContent,
+      });
+
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (error) {
+      console.error('Error printing report:', error);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('خطأ', 'حدث خطأ أثناء طباعة التقرير');
+    }
   };
 
   const StatBox = ({
@@ -185,16 +221,31 @@ export default function ReportsScreen() {
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 12 }}>
-          <Text
-            style={{
-              fontSize: 24,
-              fontWeight: "700",
-              color: colors.foreground,
-              marginBottom: 16,
-            }}
-          >
-            التقارير والتحليلات
-          </Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <Text
+              style={{
+                fontSize: 24,
+                fontWeight: "700",
+                color: colors.foreground,
+              }}
+            >
+              التقارير والتحليلات
+            </Text>
+            {reportType === 'monthly' && (
+              <Pressable
+                onPress={handlePrintMonthlyReport}
+                style={({ pressed }) => [{
+                  backgroundColor: colors.primary,
+                  paddingHorizontal: 12,
+                  paddingVertical: 8,
+                  borderRadius: 6,
+                  opacity: pressed ? 0.8 : 1,
+                }]}
+              >
+                <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>🖨️ طباعة</Text>
+              </Pressable>
+            )}
+          </View>
 
           {/* Report Type Selector */}
           <View
@@ -327,6 +378,27 @@ export default function ReportsScreen() {
               <Text style={{ fontSize: 18 }}>▶️</Text>
             </Pressable>
           </View>
+
+          {/* Print Info Banner */}
+          {reportType === 'monthly' && (
+            <View style={{
+              backgroundColor: colors.primary + '20',
+              borderLeftWidth: 4,
+              borderLeftColor: colors.primary,
+              marginBottom: 16,
+              paddingHorizontal: 12,
+              paddingVertical: 10,
+              borderRadius: 6,
+            }}>
+              <Text style={{
+                fontSize: 12,
+                color: colors.primary,
+                fontWeight: '500',
+              }}>
+                💡 يمكنك طباعة تقرير الجرد الشهري بصيغة PDF باستخدام زر الطباعة أعلاه
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* Overview Statistics */}
