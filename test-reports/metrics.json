@@ -1,0 +1,78 @@
+[
+  {
+    "timestamp": "2026-04-12T11:37:05.052Z",
+    "totalTests": 226,
+    "passedTests": 226,
+    "failedTests": 0,
+    "skippedTests": 0,
+    "duration": 3.56,
+    "successRate": 100,
+    "testFiles": [
+      {
+        "name": "lib/ui.test.ts",
+        "tests": 41,
+        "passed": 41,
+        "failed": 0,
+        "skipped": 0,
+        "duration": 0
+      },
+      {
+        "name": "lib/features.test.ts",
+        "tests": 30,
+        "passed": 30,
+        "failed": 0,
+        "skipped": 0,
+        "duration": 0
+      },
+      {
+        "name": "lib/inventory-report.test.ts",
+        "tests": 19,
+        "passed": 19,
+        "failed": 0,
+        "skipped": 0,
+        "duration": 0
+      },
+      {
+        "name": "app/users.test.tsx",
+        "tests": 42,
+        "passed": 42,
+        "failed": 0,
+        "skipped": 0,
+        "duration": 0
+      },
+      {
+        "name": "components/dashboard.test.tsx",
+        "tests": 54,
+        "passed": 54,
+        "failed": 0,
+        "skipped": 0,
+        "duration": 0
+      },
+      {
+        "name": "app/login.test.tsx",
+        "tests": 18,
+        "passed": 18,
+        "failed": 0,
+        "skipped": 0,
+        "duration": 0
+      },
+      {
+        "name": "tests/auth.logout.test.ts",
+        "tests": 1,
+        "passed": 1,
+        "failed": 0,
+        "skipped": 0,
+        "duration": 0
+      },
+      {
+        "name": "lib/integration.test.ts",
+        "tests": 21,
+        "passed": 21,
+        "failed": 0,
+        "skipped": 0,
+        "duration": 0
+      }
+    ],
+    "errors": []
+  }
+]
