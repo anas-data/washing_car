@@ -1,4 +1,4 @@
-import { eq, and, like, desc, asc, gte, lte, or } from "drizzle-orm";
+import { eq, and, like, desc, asc, gte, lte, or, ne, count } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   InsertUser,
@@ -11,6 +11,10 @@ import {
   alerts,
   dailyReports,
   monthlyReports,
+  conversations,
+  messages,
+  notes,
+  noteAssignees,
   type InsertVehicle,
   type InsertPart,
   type InsertOperation,
@@ -106,6 +110,218 @@ export async function getUserByOpenId(openId: string) {
   const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
 
   return result.length > 0 ? result[0] : undefined;
+}
+
+// ============================================================================
+// CONVERSATIONS & MESSAGES
+// ============================================================================
+
+export async function createConversation(data: {
+  participantOneId: number;
+  participantTwoId: number;
+  subject?: string;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  // Check if conversation already exists
+  const existing = await db
+    .select()
+    .from(conversations)
+    .where(
+      and(
+        eq(conversations.participantOneId, data.participantOneId),
+        eq(conversations.participantTwoId, data.participantTwoId)
+      )
+    )
+    .limit(1);
+  
+  if (existing.length > 0) {
+    return existing[0].id;
+  }
+  
+  await db.insert(conversations).values(data);
+  const created = await db.select().from(conversations).orderBy(desc(conversations.id)).limit(1);
+  return created[0]?.id || 0;
+}
+
+export async function getConversationById(conversationId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  return db.select().from(conversations).where(eq(conversations.id, conversationId)).then((r) => r[0]);
+}
+
+export async function getUserConversations(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(conversations)
+    .where(
+      or(
+        eq(conversations.participantOneId, userId),
+        eq(conversations.participantTwoId, userId)
+      )
+    )
+    .orderBy(desc(conversations.lastMessageDate));
+}
+
+export async function createMessage(data: {
+  conversationId: number;
+  senderId: number;
+  content: string;
+  attachmentUrl?: string;
+  attachmentType?: string;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  // Create message
+  await db.insert(messages).values(data);
+  
+  // Update conversation's lastMessageDate
+  await db
+    .update(conversations)
+    .set({ lastMessageDate: new Date() })
+    .where(eq(conversations.id, data.conversationId));
+  
+  const created = await db.select().from(messages).orderBy(desc(messages.id)).limit(1);
+  return created[0]?.id || 0;
+}
+
+export async function getConversationMessages(conversationId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(messages)
+    .where(eq(messages.conversationId, conversationId))
+    .orderBy(asc(messages.createdAt));
+}
+
+export async function markMessageAsRead(messageId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .update(messages)
+    .set({ isRead: true, readAt: new Date() })
+    .where(eq(messages.id, messageId));
+}
+
+export async function getUnreadMessageCount(userId: number) {
+  const db = await getDb();
+  if (!db) return 0;
+  
+  const result = await db
+    .select({ count: count() })
+    .from(messages)
+    .innerJoin(
+      conversations,
+      eq(messages.conversationId, conversations.id)
+    )
+    .where(
+      and(
+        eq(messages.isRead, false),
+        or(
+          eq(conversations.participantOneId, userId),
+          eq(conversations.participantTwoId, userId)
+        ),
+        ne(messages.senderId, userId)
+      )
+    );
+  
+  return result[0]?.count || 0;
+}
+
+// ============================================================================
+// NOTES
+// ============================================================================
+
+export async function createNote(data: {
+  title: string;
+  content: string;
+  category: "general" | "warning" | "important" | "todo";
+  priority: "low" | "medium" | "high";
+  dueDate?: Date;
+  relatedEntityType?: string;
+  relatedEntityId?: number;
+  createdById: number;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.insert(notes).values(data);
+  const created = await db.select().from(notes).orderBy(desc(notes.id)).limit(1);
+  return created[0]?.id || 0;
+}
+
+export async function getNoteById(noteId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  return db.select().from(notes).where(eq(notes.id, noteId)).then((r) => r[0]);
+}
+
+export async function getAllNotes() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(notes).orderBy(desc(notes.createdAt));
+}
+
+export async function updateNote(noteId: number, data: Partial<{
+  title: string;
+  content: string;
+  category: "general" | "warning" | "important" | "todo";
+  priority: "low" | "medium" | "high";
+  dueDate: Date | null;
+  isCompleted: boolean;
+  completedAt: Date | null;
+}>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.update(notes).set(data).where(eq(notes.id, noteId));
+}
+
+export async function deleteNote(noteId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  // Delete assignees first
+  await db.delete(noteAssignees).where(eq(noteAssignees.noteId, noteId));
+  // Delete note
+  await db.delete(notes).where(eq(notes.id, noteId));
+}
+
+export async function assignNoteToUser(noteId: number, userId: number, assignedById: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.insert(noteAssignees).values({
+    noteId,
+    userId,
+    assignedById,
+  });
+}
+
+export async function getNoteAssignees(noteId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(noteAssignees).where(eq(noteAssignees.noteId, noteId));
+}
+
+export async function getUserAssignedNotes(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const result = await db
+    .select()
+    .from(notes)
+    .innerJoin(
+      noteAssignees,
+      eq(notes.id, noteAssignees.noteId)
+    )
+    .where(eq(noteAssignees.userId, userId))
+    .orderBy(desc(notes.dueDate));
+  return result.map((r) => r.notes);
 }
 
 // ============================================================================

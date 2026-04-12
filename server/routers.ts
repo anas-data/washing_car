@@ -357,6 +357,153 @@ export const appRouter = router({
         return db.updateUserRole(input.userId, input.role);
       }),
   }),
+
+  // ============================================================================
+  // MESSAGES (CONVERSATIONS)
+  // ============================================================================
+
+  messages: router({
+    getConversations: protectedProcedure.query(({ ctx }) => {
+      return db.getUserConversations(ctx.user.id);
+    }),
+
+    getConversationMessages: protectedProcedure
+      .input(z.object({ conversationId: z.number() }))
+      .query(({ input }) => {
+        return db.getConversationMessages(input.conversationId);
+      }),
+
+    createConversation: protectedProcedure
+      .input(
+        z.object({
+          participantTwoId: z.number(),
+          subject: z.string().optional(),
+        })
+      )
+      .mutation(({ input, ctx }) => {
+        return db.createConversation({
+          participantOneId: ctx.user.id,
+          participantTwoId: input.participantTwoId,
+          subject: input.subject,
+        });
+      }),
+
+    sendMessage: protectedProcedure
+      .input(
+        z.object({
+          conversationId: z.number(),
+          content: z.string().min(1),
+          attachmentUrl: z.string().optional(),
+          attachmentType: z.string().optional(),
+        })
+      )
+      .mutation(({ input, ctx }) => {
+        return db.createMessage({
+          conversationId: input.conversationId,
+          senderId: ctx.user.id,
+          content: input.content,
+          attachmentUrl: input.attachmentUrl,
+          attachmentType: input.attachmentType,
+        });
+      }),
+
+    markAsRead: protectedProcedure
+      .input(z.object({ messageId: z.number() }))
+      .mutation(({ input }) => {
+        return db.markMessageAsRead(input.messageId);
+      }),
+
+    getUnreadCount: protectedProcedure.query(({ ctx }) => {
+      return db.getUnreadMessageCount(ctx.user.id);
+    }),
+  }),
+
+  // ============================================================================
+  // NOTES (MANAGER NOTES)
+  // ============================================================================
+
+  notes: router({
+    list: protectedProcedure.query(({ ctx }) => {
+      if (ctx.user.role !== "admin") {
+        return db.getUserAssignedNotes(ctx.user.id);
+      }
+      return db.getAllNotes();
+    }),
+
+    getById: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .query(({ input }) => {
+        return db.getNoteById(input.id);
+      }),
+
+    create: protectedProcedure
+      .input(
+        z.object({
+          title: z.string().min(1),
+          content: z.string().min(1),
+          category: z.enum(["general", "warning", "important", "todo"]).default("general"),
+          priority: z.enum(["low", "medium", "high"]).default("medium"),
+          dueDate: z.date().optional(),
+          relatedEntityType: z.string().optional(),
+          relatedEntityId: z.number().optional(),
+        })
+      )
+      .mutation(({ input, ctx }) => {
+        if (ctx.user.role !== "admin") {
+          throw new Error("غير مصرح لك بإنشاء ملاحظات");
+        }
+        return db.createNote({
+          ...input,
+          createdById: ctx.user.id,
+        });
+      }),
+
+    update: protectedProcedure
+      .input(
+        z.object({
+          id: z.number(),
+          data: z.object({
+            title: z.string().optional(),
+            content: z.string().optional(),
+            category: z.enum(["general", "warning", "important", "todo"]).optional(),
+            priority: z.enum(["low", "medium", "high"]).optional(),
+            dueDate: z.date().optional().nullable(),
+            isCompleted: z.boolean().optional(),
+            completedAt: z.date().optional().nullable(),
+          }),
+        })
+      )
+      .mutation(({ input, ctx }) => {
+        if (ctx.user.role !== "admin") {
+          throw new Error("غير مصرح لك بتحديث الملاحظات");
+        }
+        return db.updateNote(input.id, input.data);
+      }),
+
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(({ input, ctx }) => {
+        if (ctx.user.role !== "admin") {
+          throw new Error("غير مصرح لك بحذف الملاحظات");
+        }
+        return db.deleteNote(input.id);
+      }),
+
+    assignToUser: protectedProcedure
+      .input(z.object({ noteId: z.number(), userId: z.number() }))
+      .mutation(({ input, ctx }) => {
+        if (ctx.user.role !== "admin") {
+          throw new Error("غير مصرح لك بتعيين الملاحظات");
+        }
+        return db.assignNoteToUser(input.noteId, input.userId, ctx.user.id);
+      }),
+
+    getAssignees: protectedProcedure
+      .input(z.object({ noteId: z.number() }))
+      .query(({ input }) => {
+        return db.getNoteAssignees(input.noteId);
+      }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;

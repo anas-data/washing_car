@@ -288,4 +288,79 @@ export type InsertDailyReport = typeof dailyReports.$inferInsert;
 export type MonthlyReport = typeof monthlyReports.$inferSelect;
 export type InsertMonthlyReport = typeof monthlyReports.$inferInsert;
 
+// ============================================================================
+// CONVERSATIONS TABLE (FOR MESSAGING BETWEEN ADMIN AND USERS)
+// ============================================================================
+
+export const conversations = mysqlTable("conversations", {
+  id: int("id").autoincrement().primaryKey(),
+  participantOneId: int("participantOneId").notNull(), // Usually admin
+  participantTwoId: int("participantTwoId").notNull(), // Usually user
+  subject: varchar("subject", { length: 255 }),
+  lastMessageDate: datetime("lastMessageDate"),
+  isActive: boolean("isActive").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Conversation = typeof conversations.$inferSelect;
+export type InsertConversation = typeof conversations.$inferInsert;
+
+// ============================================================================
+// MESSAGES TABLE (FOR CHAT MESSAGES)
+// ============================================================================
+
+export const messages = mysqlTable("messages", {
+  id: int("id").autoincrement().primaryKey(),
+  conversationId: int("conversationId").notNull(),
+  senderId: int("senderId").notNull(),
+  content: text("content").notNull(),
+  isRead: boolean("isRead").default(false).notNull(),
+  readAt: datetime("readAt"),
+  attachmentUrl: varchar("attachmentUrl", { length: 500 }),
+  attachmentType: varchar("attachmentType", { length: 50 }), // 'image', 'file', etc.
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Message = typeof messages.$inferSelect;
+export type InsertMessage = typeof messages.$inferInsert;
+
+// ============================================================================
+// NOTES TABLE (FOR MANAGER NOTES)
+// ============================================================================
+
+export const notes = mysqlTable("notes", {
+  id: int("id").autoincrement().primaryKey(),
+  title: varchar("title", { length: 255 }).notNull(),
+  content: text("content").notNull(),
+  category: mysqlEnum("category", ["general", "warning", "important", "todo"]).default("general").notNull(),
+  priority: mysqlEnum("priority", ["low", "medium", "high"]).default("medium").notNull(),
+  dueDate: datetime("dueDate"),
+  isCompleted: boolean("isCompleted").default(false).notNull(),
+  completedAt: datetime("completedAt"),
+  relatedEntityType: varchar("relatedEntityType", { length: 50 }), // 'vehicle', 'part', 'operation', 'user', etc.
+  relatedEntityId: int("relatedEntityId"), // ID of the related entity
+  createdById: int("createdById").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Note = typeof notes.$inferSelect;
+export type InsertNote = typeof notes.$inferInsert;
+
+// ============================================================================
+// NOTE ASSIGNEES TABLE (FOR ASSIGNING NOTES TO USERS)
+// ============================================================================
+
+export const noteAssignees = mysqlTable("noteAssignees", {
+  id: int("id").autoincrement().primaryKey(),
+  noteId: int("noteId").notNull(),
+  userId: int("userId").notNull(),
+  assignedAt: timestamp("assignedAt").defaultNow().notNull(),
+  assignedById: int("assignedById").notNull(),
+});
+
+export type NoteAssignee = typeof noteAssignees.$inferSelect;
+export type InsertNoteAssignee = typeof noteAssignees.$inferInsert;
 
