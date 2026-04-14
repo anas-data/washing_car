@@ -5,7 +5,7 @@ import {
   formatCurrency,
   formatDateArabic,
   InventoryItem,
-} from './inventory-report';
+} from '../lib/inventory-report';
 
 describe('Inventory Report Generation', () => {
   const mockItems: InventoryItem[] = [

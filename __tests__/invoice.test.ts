@@ -5,7 +5,7 @@
 
 import { describe, it, expect, beforeEach } from "vitest";
 import { InvoiceService, CreateInvoiceInput } from "../server/_core/services/invoice.service";
-import { InvoicePDFGenerator } from "./invoice-pdf";
+import { InvoicePDFGenerator } from "../lib/invoice-pdf";
 
 describe("Invoice Service", () => {
   let testInvoice: any;
