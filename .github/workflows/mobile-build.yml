@@ -1,0 +1,91 @@
+name: Mobile App Build
+
+on:
+  push:
+    branches: [ main ]
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-expo:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9.12.0
+      
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
+      
+      - name: Setup pnpm cache
+        uses: actions/cache@v3
+        with:
+          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+      
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      
+      - name: Check TypeScript
+        run: pnpm check
+      
+      - name: Run tests
+        run: pnpm test
+      
+      - name: Build server
+        run: pnpm build
+      
+      - name: Create build summary
+        run: |
+          echo "## Build Summary" > build-summary.md
+          echo "" >> build-summary.md
+          echo "- **Node Version**: $(node --version)" >> build-summary.md
+          echo "- **pnpm Version**: $(pnpm --version)" >> build-summary.md
+          echo "- **Build Date**: $(date)" >> build-summary.md
+          echo "- **Commit**: ${{ github.sha }}" >> build-summary.md
+          echo "- **Branch**: ${{ github.ref }}" >> build-summary.md
+      
+      - name: Upload build summary
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-summary
+          path: build-summary.md
+
+  release:
+    runs-on: ubuntu-latest
+    needs: build-expo
+    if: startsWith(github.ref, 'refs/tags/')
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download build summary
+        uses: actions/download-artifact@v3
+        with:
+          name: build-summary
+      
+      - name: Create Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          body_path: build-summary.md
+          draft: false
+          prerelease: false
